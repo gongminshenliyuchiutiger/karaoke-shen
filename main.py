@@ -139,6 +139,9 @@ def proxy_stream():
             response.set_header('Accept-Ranges', 'bytes')
             response.set_header('Access-Control-Allow-Origin', '*')
             
+            # Relay the status code (crucial for 206 Partial Content during seeking)
+            response.status = req.status_code
+            
             if 'Content-Range' in req.headers:
                 response.set_header('Content-Range', req.headers['Content-Range'])
             if 'Content-Length' in req.headers:

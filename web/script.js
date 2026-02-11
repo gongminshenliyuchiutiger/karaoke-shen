@@ -93,7 +93,8 @@ searchBtn.addEventListener('click', async () => {
     searchBtn.disabled = true;
 
     if (typeof eel === 'undefined') {
-        alert('系統錯誤：找不到 Eel 核心元件。請確保您是透過執行 Python 程式 (python main.py) 來開啟此介面，而不是直接點開 HTML 檔案時出現。');
+        alert('【系統提示】偵測到目前處於靜態網頁模式（例如直接開啟 HTML 或使用 GitHub Pages）。\n\n' +
+            '「卡拉OK神」需要執行 Python 後端來處理 YouTube 搜尋與串流。請下載並執行 .exe 打包版本，或在本地環境執行 python main.py。');
         loader.style.display = 'none';
         searchBtn.disabled = false;
         return;
