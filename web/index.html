@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>卡拉OK神歡唱系統</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script type="text/javascript" src="/eel.js"></script>
+</head>
+
+<body>
+  <div id="app" class="fade-in">
+    <header>
+      <h1>卡拉OK神歡唱系統</h1>
+      <p>成為卡拉OK神，不再只是夢想！</p>
+    </header>
+
+    <div class="search-container">
+      <input type="text" id="search-input" placeholder="輸入搜尋關鍵字或 YouTube 網址...">
+      <div class="loader" id="search-loader"></div>
+      <button class="btn" id="search-btn">
+        <i class="fas fa-search"></i> 搜尋
+      </button>
+    </div>
+
+    <div class="results-section" id="results-section">
+      <h3>搜尋結果</h3>
+      <div class="results-grid" id="results-grid">
+        <!-- Results will be injected here -->
+      </div>
+    </div>
+
+    <div class="main-content">
+      <div class="player-section">
+        <div id="video-wrapper">
+          <video id="player" controls crossorigin="anonymous" preload="auto"></video>
+          <!-- Custom error/loading overlay could go here -->
+        </div>
+
+        <div class="controls-row">
+          <div class="song-info">
+            <h2 id="now-playing-title">尚未播放歌曲</h2>
+            <button class="btn btn-small" id="skip-btn" title="下一首">
+              <i class="fas fa-step-forward"></i> 切歌
+            </button>
+          </div>
+
+          <div class="media-controls">
+            <div class="volume-container">
+              <i class="fas fa-volume-up"></i>
+              <input type="range" id="volume-slider" min="0" max="1" step="0.01" value="1">
+            </div>
+
+            <div class="mode-selector">
+              <span class="mode-label active" id="label-guide">導唱</span>
+              <div class="knob-switch" id="karaoke-knob">
+                <div class="knob-inner"></div>
+              </div>
+              <span class="mode-label" id="label-singing">歡唱</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="playlist-section">
+        <div class="playlist-header">
+          <span>待播清單</span>
+          <div class="playlist-actions">
+            <button class="btn btn-ghost btn-icon-only" id="export-playlist-btn" title="匯出清單">
+              <i class="fas fa-file-export"></i> 匯出
+            </button>
+            <button class="btn btn-ghost btn-icon-only" id="import-playlist-btn" title="匯入清單">
+              <i class="fas fa-file-import"></i> 匯入
+            </button>
+            <button class="btn btn-ghost" id="clear-playlist-btn" title="清空清單">
+              <i class="fas fa-trash-alt"></i> 清空
+            </button>
+          </div>
+        </div>
+        <div id="playlist-items">
+          <!-- Playlist items will be injected here -->
+          <p style="text-align: center; color: rgba(255,255,255,0.3); padding-top: 20px;">目前沒有待播歌曲</p>
+        </div>
+      </div>
+    </div>
+
+
+    <footer>
+      <span>Copyright © Liyuchiutiger Gongminshen</span>
+    </footer>
+  </div>
+
+  <div id="floating-mascot" title="把我移到任何地方！">
+    <img src="image/LiyuChillGuy.svg" alt="Mascot">
+  </div>
+
+  <script src="script.js"></script>
+</body>
+
+</html>
