@@ -20,6 +20,7 @@ const clearPlaylistBtn = document.getElementById('clear-playlist-btn');
 
 let playlist = [];
 let currentIndex = -1;
+let playRequestId = 0;
 
 function logDebug(msg) {
     // Only console log now that the debug UI is removed
@@ -321,6 +322,7 @@ function removeFromPlaylist(index) {
 async function playSong(index) {
     if (index < 0 || index >= playlist.length) return;
 
+    const thisRequestId = ++playRequestId;
     currentIndex = index;
     const item = playlist[index];
     nowPlayingTitle.innerText = `正在播放：${item.title}`;
@@ -335,6 +337,8 @@ async function playSong(index) {
 
     try {
         const streamUrl = await eel.get_stream_url(item.id)();
+        if (thisRequestId !== playRequestId) return; // Ignore if another song was requested while resolving
+
         if (!streamUrl) {
             throw new Error('後端回傳網址為空');
         }
@@ -348,6 +352,10 @@ async function playSong(index) {
         }
 
         await player.play().catch(e => {
+            if (e.name === 'AbortError') {
+                logDebug(`播放被中止 (AbortError) - 可能有新的載入請求，忽略此錯誤。`);
+                return;
+            }
             logDebug(`播放啟動失敗: ${e.name}`);
             throw e;
         });
@@ -435,6 +443,17 @@ karaokeKnob.addEventListener('click', () => {
 });
 
 // Export/Import Playlist
+const formatDateTime = () => {
+    const now = new Date();
+    const Y = now.getFullYear();
+    const M = String(now.getMonth() + 1).padStart(2, '0');
+    const D = String(now.getDate()).padStart(2, '0');
+    const h = String(now.getHours()).padStart(2, '0');
+    const m = String(now.getMinutes()).padStart(2, '0');
+    const s = String(now.getSeconds()).padStart(2, '0');
+    return `${Y}${M}${D}_${h}${m}${s}`;
+};
+
 exportBtn.addEventListener('click', () => {
     if (playlist.length === 0) return alert('目前沒有待播歌曲可以匯出。');
     const data = JSON.stringify(playlist, null, 2);
@@ -442,7 +461,7 @@ exportBtn.addEventListener('click', () => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `karaoke_playlist_${new Date().getTime()}.json`;
+    a.download = `karaoke-shen_playlist_${formatDateTime()}.json`;
     a.click();
     URL.revokeObjectURL(url);
 });
