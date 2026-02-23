@@ -15,11 +15,12 @@
 .mode-selector {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
   background: rgba(255, 255, 255, 0.05);
-  padding: 8px 15px;
+  padding: 6px 12px;
   border-radius: 30px;
   border: 1px solid var(--glass-border);
+  flex-shrink: 0;
 }
 
 .mode-label {
@@ -241,11 +242,90 @@ video {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 15px;
+  gap: 10px;
   background: rgba(255, 255, 255, 0.02);
-  padding: 15px 20px;
+  padding: 10px 15px;
   border-radius: 15px;
   border: 1px solid rgba(255, 255, 255, 0.05);
+  flex-wrap: nowrap;
+  overflow: hidden;
+}
+
+.key-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(25, 25, 35, 0.6);
+  padding: 6px 12px;
+  border-radius: 50px;
+  border: 1px solid rgba(187, 134, 252, 0.3);
+  backdrop-filter: blur(5px);
+  flex-shrink: 0;
+}
+
+.btn-pill {
+  padding: 6px 15px !important;
+  border-radius: 30px !important;
+  font-size: 0.85rem !important;
+  background: linear-gradient(90deg, #9c27b0, #673ab7) !important;
+  color: white !important;
+  border: none !important;
+  box-shadow: 0 0 10px rgba(156, 39, 176, 0.3);
+  white-space: nowrap;
+}
+
+.btn-pitch-up {
+  background: linear-gradient(90deg, #a777e3, #6e8efb) !important;
+}
+
+.btn-pitch-down {
+  background: linear-gradient(90deg, #6e8efb, #a777e3) !important;
+}
+
+.key-display-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 60px;
+}
+
+.key-display {
+  font-family: 'Courier New', Courier, monospace;
+  font-weight: 900;
+  font-size: 1.2rem;
+  color: #fff;
+  text-shadow: 0 0 10px rgba(187, 134, 252, 0.8);
+}
+
+.key-visual-scale {
+  display: flex;
+  gap: 4px;
+  height: 4px;
+}
+
+.scale-dot {
+  width: 5px;
+  height: 5px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 50%;
+}
+
+.scale-dot.active {
+  background: #00ffd2;
+  box-shadow: 0 0 10px #00ffd2, 0 0 20px #00ffd2;
+}
+
+.btn-original-key {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  color: #888 !important;
+  border-radius: 12px !important;
+}
+
+.btn-original-key:hover {
+  background: rgba(255, 255, 255, 0.1) !important;
+  color: #fff !important;
 }
 
 .control-group {
@@ -257,14 +337,15 @@ video {
 .volume-container {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   background: rgba(255, 255, 255, 0.05);
-  padding: 5px 12px;
+  padding: 5px 10px;
   border-radius: 20px;
+  flex-shrink: 0;
 }
 
 #volume-slider {
-  width: 80px;
+  width: 60px;
   cursor: pointer;
   accent-color: var(--primary-color);
 }
