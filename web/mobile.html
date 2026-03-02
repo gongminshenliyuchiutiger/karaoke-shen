@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>卡拉OK神 - 手機點歌</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #bb86fc;
+            --secondary: #03dac6;
+            --bg: #121212;
+            --surface: #1e1e1e;
+            --error: #cf6679;
+        }
+
+        body {
+            background: var(--bg);
+            color: #e0e0e0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid rgba(187, 134, 252, 0.2);
+        }
+
+        .header h1 {
+            color: var(--primary);
+            font-size: 1.6rem;
+            margin: 0 0 5px 0;
+            text-shadow: 0 0 10px rgba(187, 134, 252, 0.3);
+        }
+
+        .header p {
+            color: #888;
+            font-size: 0.9rem;
+            margin: 0;
+        }
+
+        .search-box {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        input {
+            flex: 1;
+            background: var(--surface);
+            border: 1px solid #333;
+            color: white;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 16px;
+            /* Prevent zoom on iOS */
+        }
+
+        button {
+            background: var(--primary);
+            color: #000;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-weight: bold;
+        }
+
+        .results {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .card {
+            display: flex;
+            background: var(--surface);
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        }
+
+        .card img {
+            width: 100px;
+            height: 56px;
+            object-fit: cover;
+        }
+
+        .card .info {
+            padding: 10px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .card .title {
+            font-size: 0.9rem;
+            font-weight: 500;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            margin-bottom: 5px;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 12px;
+            margin-top: 10px;
+        }
+
+        .preview-btn {
+            background: rgba(3, 218, 198, 0.1);
+            color: var(--secondary);
+            border: 1px solid var(--secondary);
+            padding: 8px 15px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            flex: 1;
+            text-align: center;
+        }
+
+        .add-btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            flex: 1;
+        }
+
+        .loader {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 255, 255, 0.9);
+            color: black;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            display: none;
+            z-index: 1000;
+        }
+
+        .admin-login-container {
+            display: none;
+            background: var(--surface);
+            padding: 15px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            border: 1px solid #444;
+        }
+
+        .settings-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: transparent;
+            color: #888;
+            padding: 5px;
+            font-size: 1.2rem;
+        }
+
+        /* Preview Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 3000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.95);
+        }
+
+        .modal-content {
+            position: relative;
+            margin: auto;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 90%;
+            max-width: 500px;
+        }
+
+        .video-container {
+            position: relative;
+            padding-bottom: 56.25%;
+            height: 0;
+            overflow: hidden;
+            border-radius: 10px;
+        }
+
+        .video-container video {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+        }
+
+        .close-modal {
+            color: white;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            background: var(--surface);
+            margin-bottom: 15px;
+            border-radius: 12px;
+            padding: 5px;
+        }
+
+        .tab-btn {
+            flex: 1;
+            background: transparent;
+            color: #888;
+            border: none;
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            transition: all 0.3s;
+        }
+
+        .tab-btn.active {
+            background: var(--primary);
+            color: #000;
+        }
+
+        .tab-pane {
+            display: none;
+        }
+
+        .tab-pane.active {
+            display: block;
+        }
+
+        /* Admin Styles */
+        .admin-controls {
+            background: var(--surface);
+            padding: 15px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            border-left: 4px solid var(--secondary);
+        }
+
+        .playlist-card {
+            display: flex;
+            align-items: center;
+            background: var(--surface);
+            margin-bottom: 10px;
+            padding: 8px;
+            border-radius: 8px;
+            gap: 10px;
+            border: 1px solid transparent;
+        }
+
+        .playlist-card.active {
+            border-color: var(--secondary);
+            background: rgba(3, 218, 198, 0.1);
+        }
+
+        .playlist-card img {
+            width: 60px;
+            height: 34px;
+            object-fit: cover;
+            border-radius: 4px;
+        }
+
+        .playlist-card .title {
+            flex: 1;
+            font-size: 0.85rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .playlist-card.active .title {
+            color: var(--secondary);
+            font-weight: bold;
+        }
+
+        .admin-btns {
+            display: flex;
+            gap: 5px;
+        }
+
+        .btn-mini {
+            padding: 5px 8px;
+            font-size: 12px;
+            border-radius: 4px;
+        }
+
+        .btn-up {
+            background: #333;
+            color: white;
+            border: 1px solid #555;
+        }
+
+        .btn-down {
+            background: #333;
+            color: white;
+            border: 1px solid #555;
+        }
+
+        .btn-del {
+            background: rgba(207, 102, 121, 0.2);
+            color: var(--error);
+            border: 1px solid var(--error);
+        }
+
+        .btn-play-now {
+            background: rgba(187, 134, 252, 0.2);
+            color: var(--primary);
+            border: 1px solid var(--primary);
+        }
+
+        /* Mascot */
+        #mobile-mascot {
+            position: fixed;
+            width: 80px;
+            height: 80px;
+            z-index: 2000;
+            cursor: move;
+            touch-action: none;
+            filter: drop-shadow(0 5px 15px rgba(0, 0, 0, 0.5));
+            bottom: 30px;
+            right: 20px;
+        }
+
+        #mobile-mascot img {
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .admin-only {
+            display: none;
+        }
+
+        .admin-playback-controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .btn-control {
+            flex: 1;
+            padding: 12px;
+            font-size: 1rem;
+            border-radius: 10px;
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            font-weight: bold;
+        }
+
+        .btn-play-pause {
+            background: var(--primary);
+            color: black;
+        }
+
+        .btn-skip {
+            background: var(--secondary);
+            color: black;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="header">
+        <h1>卡拉OK神歡唱系統</h1>
+        <p>成為卡拉OK神，不再只是夢想！</p>
+    </div>
+
+    <button id="toggle-admin-btn" class="settings-btn" title="解鎖管理員模式">
+        <i class="fas fa-cog"></i>
+    </button>
+
+    <div class="admin-login-container" id="admin-login-section">
+        <div style="display: flex; gap: 10px; align-items: center;">
+            <input type="password" id="admin-pass" placeholder="管理員密碼">
+            <button id="lock-btn" style="background: #333; color: #fff; padding: 12px 15px;">解鎖</button>
+        </div>
+    </div>
+
+    <div class="tabs">
+        <button class="tab-btn active" data-target="search-tab">
+            <i class="fas fa-search"></i> 點歌
+        </button>
+        <button class="tab-btn admin-only" id="admin-tab-btn" data-target="admin-tab">
+            <i class="fas fa-tasks"></i> 管理
+        </button>
+    </div>
+
+    <div id="search-tab" class="tab-pane active">
+        <div class="search-box">
+            <input type="text" id="q" placeholder="歌手、歌名...">
+            <button id="search-btn">搜尋</button>
+        </div>
+
+        <div id="loader" class="loader">
+            <i class="fas fa-spinner fa-spin fa-2x"></i>
+        </div>
+
+        <div id="results" class="results"></div>
+    </div>
+
+    <div id="admin-tab" class="tab-pane">
+        <div class="admin-controls">
+            <h3 style="margin:0 0 10px 0; font-size: 0.95rem; color: var(--secondary);">
+                <i class="fas fa-user-shield"></i> 管理員模式
+            </h3>
+
+            <div class="admin-playback-controls">
+                <button class="btn-control btn-play-pause" onclick="remotePlayPause()">
+                    <i class="fas fa-play"></i> / <i class="fas fa-pause"></i> 播放
+                </button>
+                <button class="btn-control btn-skip" onclick="remoteSkip()">
+                    <i class="fas fa-step-forward"></i> 切歌
+                </button>
+            </div>
+
+            <div id="admin-playlist">
+                <!-- Current playlist will be injected here -->
+            </div>
+            <button id="refresh-pl-btn"
+                style="width: 100%; margin-top: 10px; background: #333; color: #fff; font-size: 14px;">
+                <i class="fas fa-sync-alt"></i> 重新選取清單
+            </button>
+        </div>
+    </div>
+
+    <div id="preview-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal" id="close-preview">&times;</span>
+            <div id="video-wrapper" class="video-container">
+                <video id="preview-video" controls playsinline></video>
+            </div>
+            <p id="preview-title" style="margin-top:10px; font-size:14px; text-align:center;"></p>
+        </div>
+    </div>
+
+    <div id="toast" class="toast">已加入待播清單</div>
+
+    <div id="mobile-mascot" title="把我移到任何地方！">
+        <img src="image/LiyuChillGuy.svg" alt="Mascot">
+    </div>
+
+    <script>
+        const q = document.getElementById('q');
+        const btn = document.getElementById('search-btn');
+        const results = document.getElementById('results');
+        const loader = document.getElementById('loader');
+        const toast = document.getElementById('toast');
+        const adminPass = document.getElementById('admin-pass');
+        const lockBtn = document.getElementById('lock-btn');
+        const adminLoginSection = document.getElementById('admin-login-section');
+        const toggleAdminBtn = document.getElementById('toggle-admin-btn');
+        const adminTabBtn = document.getElementById('admin-tab-btn');
+        const adminPlaylist = document.getElementById('admin-playlist');
+        const refreshBtn = document.getElementById('refresh-pl-btn');
+        const mascot = document.getElementById('mobile-mascot');
+
+        const previewModal = document.getElementById('preview-modal');
+        const closePreview = document.getElementById('close-preview');
+        const previewVideo = document.getElementById('preview-video');
+        const previewTitle = document.getElementById('preview-title');
+
+        let isAdmin = false;
+
+        // Toggle Admin Section
+        toggleAdminBtn.onclick = () => {
+            const isHidden = adminLoginSection.style.display === '' || adminLoginSection.style.display === 'none';
+            adminLoginSection.style.display = isHidden ? 'block' : 'none';
+            toggleAdminBtn.style.color = isHidden ? 'var(--primary)' : '#888';
+        };
+
+        // Admin Unlock
+        lockBtn.onclick = () => {
+            if (adminPass.value === 'admin') {
+                isAdmin = true;
+                adminTabBtn.style.display = 'block';
+                adminLoginSection.style.display = 'none';
+                toggleAdminBtn.style.display = 'none'; // Hide settings entirely after unlock
+                alert('管理員模式已解鎖！');
+                loadPlaylist();
+            } else {
+                alert('密碼錯誤');
+            }
+        };
+
+        // Tab Switching
+        document.querySelectorAll('.tab-btn').forEach(tbtn => {
+            tbtn.onclick = () => {
+                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+                tbtn.classList.add('active');
+                const target = tbtn.getAttribute('data-target');
+                document.getElementById(target).classList.add('active');
+                if (target === 'admin-tab') loadPlaylist();
+            };
+        });
+
+        async function search() {
+            const query = q.value.trim();
+            if (!query) return;
+
+            loader.style.display = 'block';
+            results.innerHTML = '';
+
+            try {
+                const response = await fetch(`/mobile_search?q=${encodeURIComponent(query)}`);
+                const data = await response.json();
+
+                if (data.results && data.results.length > 0) {
+                    data.results.forEach(item => {
+                        const card = document.createElement('div');
+                        card.className = 'card';
+                        card.innerHTML = `
+                            <img src="${item.thumbnail}" alt="">
+                            <div class="info">
+                                <div class="title">${item.title}</div>
+                                <div class="btn-group">
+                                    <button class="add-btn" onclick="add('${item.id}', '${item.title.replace(/'/g, "\\'")}', '${item.thumbnail}')">
+                                        <i class="fas fa-plus"></i> 點歌
+                                    </button>
+                                    <button class="preview-btn" onclick="window.open('https://www.youtube.com/watch?v=${item.id}', '_blank')">
+                                        <i class="fas fa-play-circle"></i> 開啟
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+                        results.appendChild(card);
+                    });
+                } else {
+                    results.innerHTML = '<p style="text-align:center">找不到結果</p>';
+                }
+            } catch (e) {
+                alert('搜尋失敗');
+            } finally {
+                loader.style.display = 'none';
+            }
+        }
+
+        async function add(id, title, thumb) {
+            try {
+                await fetch(`/mobile_add?id=${id}&title=${encodeURIComponent(title)}&thumb=${encodeURIComponent(thumb)}`);
+                showToast();
+                if (isAdmin) loadPlaylist();
+            } catch (e) {
+                alert('點歌失敗');
+            }
+        }
+
+        async function loadPlaylist() {
+            if (!isAdmin) return;
+            adminPlaylist.innerHTML = '<p style="text-align:center; font-size:12px;">讀取中...</p>';
+            try {
+                const response = await fetch('/mobile_get_playlist');
+                const data = await response.json();
+                renderAdminPlaylist(data.playlist || [], data.currentIndex !== undefined ? data.currentIndex : -1);
+            } catch (e) {
+                adminPlaylist.innerHTML = '<p style="text-align:center; color:var(--error); font-size:12px;">傳讀失敗</p>';
+            }
+        }
+
+        function renderAdminPlaylist(pl, curIdx) {
+            if (pl.length === 0) {
+                adminPlaylist.innerHTML = '<p style="text-align:center; color:#555; font-size:12px;">清單目前為空</p>';
+                return;
+            }
+            adminPlaylist.innerHTML = '';
+            pl.forEach((item, index) => {
+                const isActive = (index === curIdx);
+                const div = document.createElement('div');
+                div.className = `playlist-card ${isActive ? 'active' : ''}`;
+                div.innerHTML = `
+                    <img src="${item.thumbnail}">
+                    <div class="title">
+                        ${isActive ? '<i class="fas fa-play" style="font-size: 0.7rem; margin-right: 4px;"></i>' : ''}
+                        ${index + 1}. ${item.title}
+                    </div>
+                    <div class="admin-btns">
+                        <button class="btn-mini btn-play-now" onclick="playIdx(${index})" title="立即播放">播</button>
+                        <button class="btn-mini btn-up" onclick="reorder(${index}, ${index - 1})" ${index === 0 ? 'disabled' : ''}>↑</button>
+                        <button class="btn-mini btn-down" onclick="reorder(${index}, ${index + 1})" ${index === pl.length - 1 ? 'disabled' : ''}>↓</button>
+                        <button class="btn-mini btn-del" onclick="del(${index})"><i class="fas fa-trash-alt"></i></button>
+                    </div>
+                `;
+                adminPlaylist.appendChild(div);
+            });
+        }
+
+        async function playIdx(index) {
+            try {
+                await fetch(`/mobile_play_idx?index=${index}`);
+                setTimeout(loadPlaylist, 500);
+            } catch (e) {
+                alert('播放失敗');
+            }
+        }
+
+        async function reorder(from, to) {
+            try {
+                await fetch(`/mobile_reorder?from=${from}&to=${to}`);
+                setTimeout(loadPlaylist, 500); // Small delay to wait for backend/main window update
+            } catch (e) {
+                alert('移動失敗');
+            }
+        }
+
+        async function del(index) {
+            if (!confirm('確定要移除這首歌嗎？')) return;
+            try {
+                await fetch(`/mobile_delete?index=${index}`);
+                setTimeout(loadPlaylist, 500);
+            } catch (e) {
+                alert('移除失敗');
+            }
+        }
+
+        async function remotePlayPause() {
+            try {
+                await fetch('/mobile_play_pause');
+            } catch (e) {
+                alert('操作失敗');
+            }
+        }
+
+        async function remoteSkip() {
+            if (!confirm('確定要切換到下一首歌嗎？')) return;
+            try {
+                await fetch('/mobile_skip');
+            } catch (e) {
+                alert('切歌失敗');
+            }
+        }
+
+        refreshBtn.onclick = loadPlaylist;
+
+        // Preview Logic
+        function openPreview(id, title) {
+            previewTitle.innerText = title;
+            previewVideo.src = `/proxy_stream?video_id=${id}`;
+            previewModal.style.display = 'block';
+            previewVideo.play().catch(e => console.log("Auto-play blocked or error:", e));
+        }
+
+        function closePreviewModal() {
+            previewModal.style.display = 'none';
+            previewVideo.pause();
+            previewVideo.src = ""; // Clear source to stop download
+        }
+
+        closePreview.onclick = closePreviewModal;
+        window.onclick = (e) => {
+            if (e.target == previewModal) closePreviewModal();
+        };
+
+        function showToast() {
+            toast.style.display = 'block';
+            setTimeout(() => {
+                toast.style.display = 'none';
+            }, 2000);
+        }
+
+        btn.onclick = search;
+        q.onkeypress = (e) => { if (e.key === 'Enter') search(); };
+
+        // Mascot Draggable (Touch Support)
+        let isDragging = false;
+        let offsetX, offsetY;
+
+        mascot.addEventListener('touchstart', (e) => {
+            isDragging = true;
+            const touch = e.touches[0];
+            const rect = mascot.getBoundingClientRect();
+            offsetX = touch.clientX - rect.left;
+            offsetY = touch.clientY - rect.top;
+            mascot.style.transition = 'none';
+            e.preventDefault();
+        }, { passive: false });
+
+        document.addEventListener('touchmove', (e) => {
+            if (!isDragging) return;
+            const touch = e.touches[0];
+            let x = touch.clientX - offsetX;
+            let y = touch.clientY - offsetY;
+
+            // Boundaries
+            x = Math.max(0, Math.min(x, window.innerWidth - mascot.offsetWidth));
+            y = Math.max(0, Math.min(y, window.innerHeight - mascot.offsetHeight));
+
+            mascot.style.left = x + 'px';
+            mascot.style.top = y + 'px';
+            mascot.style.right = 'auto';
+            mascot.style.bottom = 'auto';
+            e.preventDefault();
+        }, { passive: false });
+
+        document.addEventListener('touchend', () => {
+            isDragging = false;
+            mascot.style.transition = 'all 0.1s';
+        });
+    </script>
+</body>
+
+</html>

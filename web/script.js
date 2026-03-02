@@ -1,3 +1,76 @@
+/**
+ * Jungle pitch shifter implementation
+ */
+class Jungle {
+    constructor(context) {
+        this.context = context;
+        this.input = context.createGain();
+        this.output = context.createGain();
+        this.delayTime = 0.100;
+        this.fadeTime = 0.050;
+        this.bufferTime = 0.100;
+
+        this.mod1 = context.createOscillator();
+        this.mod2 = context.createOscillator();
+        this.mod1Gain = context.createGain();
+        this.mod2Gain = context.createGain();
+        this.mod1Inv = context.createGain();
+        this.mod1Inv.gain.value = -1;
+
+        this.processor1 = context.createDelay(this.delayTime * 2);
+        this.processor2 = context.createDelay(this.delayTime * 2);
+        this.fade1 = context.createGain();
+        this.fade2 = context.createGain();
+
+        const length = 4096;
+        const curve1 = new Float32Array(length);
+        const curve2 = new Float32Array(length);
+        for (let i = 0; i < length; i++) {
+            const x = i / length;
+            curve1[i] = Math.sqrt(Math.cos(x * Math.PI / 2));
+            curve2[i] = Math.sqrt(Math.sin(x * Math.PI / 2));
+        }
+
+        this.fade1Curve = context.createWaveShaper();
+        this.fade1Curve.curve = curve1;
+        this.fade2Curve = context.createWaveShaper();
+        this.fade2Curve.curve = curve2;
+
+        this.input.connect(this.processor1);
+        this.input.connect(this.processor2);
+        this.processor1.connect(this.fade1);
+        this.processor2.connect(this.fade2);
+        this.fade1.connect(this.output);
+        this.fade2.connect(this.output);
+
+        this.mod1.connect(this.mod1Gain);
+        this.mod2.connect(this.mod2Gain);
+        this.mod1Gain.connect(this.processor1.delayTime);
+        this.mod2Gain.connect(this.processor2.delayTime);
+        this.mod1.connect(this.fade1Curve);
+        this.mod2.connect(this.fade2Curve);
+        this.fade1Curve.connect(this.fade1.gain);
+        this.fade2Curve.connect(this.fade2.gain);
+
+        this.mod1.type = 'sawtooth';
+        this.mod2.type = 'sawtooth';
+        this.mod1.frequency.value = 1 / this.bufferTime;
+        this.mod2.frequency.value = 1 / this.bufferTime;
+
+        this.setPitchOffset(0);
+        this.mod1.start();
+        this.mod2.start();
+    }
+
+    setPitchOffset(offset) {
+        const speed = offset * this.bufferTime;
+        this.mod1Gain.gain.setTargetAtTime(speed, this.context.currentTime, 0.01);
+        this.mod2Gain.gain.setTargetAtTime(speed, this.context.currentTime, 0.01);
+        this.processor1.delayTime.value = this.delayTime;
+        this.processor2.delayTime.value = this.delayTime;
+    }
+}
+
 const player = document.getElementById('player');
 const searchInput = document.getElementById('search-input');
 const searchBtn = document.getElementById('search-btn');
@@ -24,9 +97,247 @@ const keyUpBtn = document.getElementById('key-up-btn');
 const keyResetBtn = document.getElementById('key-reset-btn');
 const keyDisplay = document.getElementById('key-display');
 
+// New UI Elements
+const tabBtns = document.querySelectorAll('.tab-btn');
+const tabPanes = document.querySelectorAll('.tab-pane');
+const nextSongText = document.getElementById('next-song-text');
+const favoritesItems = document.getElementById('favorites-items');
+const historyItems = document.getElementById('history-items');
+const loadMoreContainer = document.getElementById('load-more-container');
+const qrcodeImg = document.getElementById('qrcode-img');
+const mobileUrlText = document.getElementById('mobile-url');
+const mobileFab = document.getElementById('mobile-fab');
+const mobilePopup = document.getElementById('mobile-access-popup');
+const closeMobilePopup = document.getElementById('close-mobile-popup');
+const mobileUrlLink = document.getElementById('mobile-url-link');
+const copyMobileBtn = document.getElementById('copy-mobile-link');
+const loadMoreBtn = document.getElementById('load-more-btn');
+
 let playlist = [];
+let favorites = JSON.parse(localStorage.getItem('karaoke_favorites') || '[]');
+let history = JSON.parse(localStorage.getItem('karaoke_history') || '[]');
 let currentIndex = -1;
 let playRequestId = 0;
+let lastSearchQuery = '';
+let searchResultsOffset = 0;
+
+// Dragging state for FAB and Mascot
+function makeDraggable(el) {
+    let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+    el.onmousedown = dragMouseDown;
+
+    function dragMouseDown(e) {
+        // Don't drag if clicking buttons inside popups
+        if (e.target.closest('button')) return;
+
+        e = e || window.event;
+        e.preventDefault();
+        pos3 = e.clientX;
+        pos4 = e.clientY;
+        document.onmouseup = closeDragElement;
+        document.onmousemove = elementDrag;
+        el.style.transition = 'none';
+    }
+
+    function elementDrag(e) {
+        e = e || window.event;
+        e.preventDefault();
+        pos1 = pos3 - e.clientX;
+        pos2 = pos4 - e.clientY;
+        pos3 = e.clientX;
+        pos4 = e.clientY;
+
+        const newTop = el.offsetTop - pos2;
+        const newLeft = el.offsetLeft - pos1;
+
+        // Boundaries
+        const margin = 10;
+        const boundedTop = Math.max(margin, Math.min(window.innerHeight - el.offsetHeight - margin, newTop));
+        const boundedLeft = Math.max(margin, Math.min(window.innerWidth - el.offsetWidth - margin, newLeft));
+
+        el.style.top = boundedTop + "px";
+        el.style.left = boundedLeft + "px";
+        el.style.bottom = 'auto';
+        el.style.right = 'auto';
+    }
+
+    function closeDragElement() {
+        document.onmouseup = null;
+        document.onmousemove = null;
+        el.style.transition = '';
+    }
+}
+
+const mobileWidget = document.getElementById('mobile-remote-widget');
+if (mobileWidget) makeDraggable(mobileWidget);
+if (mascot) makeDraggable(mascot);
+
+// Tab Switching Logic
+tabBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+        const targetTab = btn.getAttribute('data-tab');
+
+        tabBtns.forEach(b => b.classList.remove('active'));
+        tabPanes.forEach(p => p.classList.remove('active'));
+
+        btn.classList.add('active');
+        document.getElementById(targetTab).classList.add('active');
+
+        if (targetTab === 'favorites-tab') renderFavorites();
+        if (targetTab === 'history-tab') renderHistory();
+    });
+});
+
+// Mobile Remote Bridge
+eel.expose(js_add_to_playlist);
+function js_add_to_playlist(item) {
+    console.log("Remote add received (Raw):", item);
+    // Double check item.title for mojibake in logs
+    addToPlaylist(item);
+    switchTab('playlist-tab');
+}
+
+eel.expose(js_get_playlist);
+function js_get_playlist() {
+    return {
+        playlist: playlist,
+        currentIndex: currentIndex
+    };
+}
+
+eel.expose(js_play_index);
+function js_play_index(index) {
+    console.log("Remote play index triggered:", index);
+    playSong(index);
+}
+
+eel.expose(js_reorder_playlist);
+function js_reorder_playlist(fromIdx, toIdx) {
+    if (fromIdx === toIdx) return;
+    const item = playlist.splice(fromIdx, 1)[0];
+    playlist.splice(toIdx, 0, item);
+
+    // Adjust currentIndex
+    if (currentIndex === fromIdx) {
+        currentIndex = toIdx;
+    } else if (currentIndex > fromIdx && currentIndex <= toIdx) {
+        currentIndex--;
+    } else if (currentIndex < fromIdx && currentIndex >= toIdx) {
+        currentIndex++;
+    }
+
+    renderPlaylist();
+    updateNextSongPrompt();
+}
+
+eel.expose(js_delete_from_playlist);
+function js_delete_from_playlist(index) {
+    removeFromPlaylist(index);
+}
+
+eel.expose(js_toggle_play_pause);
+function js_toggle_play_pause() {
+    console.log("Remote play/pause triggered");
+    if (player.paused) player.play();
+    else player.pause();
+}
+
+eel.expose(js_skip_song);
+function js_skip_song() {
+    console.log("Remote skip triggered");
+    playNext();
+}
+
+async function initMobileAccess() {
+    if (typeof eel === 'undefined') return;
+    try {
+        const ip2 = await eel.get_local_ip()();
+        const url = `http://${ip2}:8000/mobile`;
+        if (mobileUrlLink) {
+            mobileUrlLink.innerText = url;
+            mobileUrlLink.href = url;
+        }
+        if (qrcodeImg) qrcodeImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(url)}`;
+    } catch (e) {
+        console.error("Failed to init mobile access:", e);
+    }
+}
+
+initMobileAccess();
+
+// Mobile Widget Toggles
+if (mobileFab) {
+    mobileFab.addEventListener('click', () => {
+        mobilePopup.classList.toggle('active');
+    });
+}
+if (closeMobilePopup) {
+    closeMobilePopup.addEventListener('click', () => {
+        mobilePopup.classList.remove('active');
+    }); if (copyMobileBtn) {
+        copyMobileBtn.addEventListener('click', () => {
+            const url = mobileUrlLink.innerText;
+            navigator.clipboard.writeText(url).then(() => {
+                const originalIcon = copyMobileBtn.innerHTML;
+                copyMobileBtn.innerHTML = '<i class="fas fa-check" style="color: var(--secondary-color)"></i>';
+                setTimeout(() => {
+                    copyMobileBtn.innerHTML = originalIcon;
+                }, 2000);
+            });
+        });
+    }
+}
+
+function switchTab(tabId) {
+    const btn = document.querySelector(`.tab-btn[data-tab="${tabId}"]`);
+    if (btn) btn.click();
+}
+
+function saveFavorites() {
+    localStorage.setItem('karaoke_favorites', JSON.stringify(favorites));
+}
+
+function saveHistory() {
+    localStorage.setItem('karaoke_history', JSON.stringify(history));
+}
+
+function addToHistory(item) {
+    // Remove if already exists (to move to top)
+    history = history.filter(i => i.id !== item.id);
+    history.unshift(item);
+    if (history.length > 100) history.pop(); // Keep last 100
+    saveHistory();
+}
+
+function toggleFavorite(item, e) {
+    if (e) e.stopPropagation();
+    const index = favorites.findIndex(f => f.id === item.id);
+    if (index === -1) {
+        favorites.push(item);
+    } else {
+        favorites.splice(index, 1);
+    }
+    saveFavorites();
+    renderPlaylist();
+    renderFavorites();
+    // Update any icons in search results too if they are visible
+    updateFavoriteIcons();
+}
+
+function updateFavoriteIcons() {
+    const allFavBtns = document.querySelectorAll('.fav-btn');
+    allFavBtns.forEach(btn => {
+        const id = btn.getAttribute('data-id');
+        const isFav = favorites.some(f => f.id === id);
+        if (isFav) {
+            btn.classList.add('active');
+            btn.innerHTML = '<i class="fas fa-heart"></i>';
+        } else {
+            btn.classList.remove('active');
+            btn.innerHTML = '<i class="far fa-heart"></i>';
+        }
+    });
+}
 
 function logDebug(msg) {
     // Only console log now that the debug UI is removed
@@ -46,62 +357,69 @@ let inverter;
 let dryGain; // Original audio gain
 let wetGain; // Processed audio gain
 
-function initAudio() {
-    if (audioCtx) return;
-    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    source = audioCtx.createMediaElementSource(player);
+async function initAudio() {
+    if (audioCtx) {
+        if (audioCtx.state === 'suspended') {
+            await audioCtx.resume();
+            console.log("AudioContext resumed");
+        }
+        return;
+    }
 
-    pitchShifter = new Jungle(audioCtx);
-    pitchShifter.setPitchOffset(0);
+    console.log("Initializing audio system...");
+    try {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        source = audioCtx.createMediaElementSource(player);
 
-    splitter = audioCtx.createChannelSplitter(2);
-    merger = audioCtx.createChannelMerger(2);
+        if (typeof Jungle === 'undefined') {
+            console.error("Jungle class is not defined!");
+            return;
+        }
 
-    // Create an inverter for the right channel
-    inverter = audioCtx.createGain();
-    inverter.gain.value = -1;
+        pitchShifter = new Jungle(audioCtx);
+        pitchShifter.setPitchOffset(0);
 
-    // Nodes for "Karaoke" path (L - R)
-    // L -> Merger[0]
-    // R -> Inverter -> Merger[0]
-    // This makes Merger[0] = L - R
+        splitter = audioCtx.createChannelSplitter(2);
+        merger = audioCtx.createChannelMerger(2);
+        inverter = audioCtx.createGain();
+        inverter.gain.value = -1;
 
-    dryGain = audioCtx.createGain();
-    wetGain = audioCtx.createGain();
+        dryGain = audioCtx.createGain();
+        wetGain = audioCtx.createGain();
 
-    // Default state: Dry only
-    dryGain.gain.value = 1;
-    wetGain.gain.value = 0;
+        dryGain.gain.value = 1;
+        wetGain.gain.value = 0;
 
-    source.connect(pitchShifter.input);
-    pitchShifter.output.connect(dryGain);
-    dryGain.connect(audioCtx.destination);
+        source.connect(pitchShifter.input);
+        pitchShifter.output.connect(dryGain);
+        dryGain.connect(audioCtx.destination);
 
-    // Karaoke Path
-    pitchShifter.output.connect(splitter);
+        pitchShifter.output.connect(splitter);
+        splitter.connect(merger, 0, 0);
+        splitter.connect(inverter, 1);
+        inverter.connect(merger, 0, 0);
+        splitter.connect(merger, 0, 1);
+        inverter.connect(merger, 0, 1);
 
-    // Right channel sum (mono to both)
-    // Create L-R on both channels
-    splitter.connect(merger, 0, 0); // L -> Left
-    splitter.connect(inverter, 1);  // R -> Inverter
-    inverter.connect(merger, 0, 0); // -R -> Left (Left = L - R)
+        const boost = audioCtx.createGain();
+        boost.gain.value = 1.5;
+        merger.connect(boost);
+        boost.connect(wetGain);
+        wetGain.connect(audioCtx.destination);
 
-    splitter.connect(merger, 0, 1); // L -> Right
-    inverter.connect(merger, 0, 1); // -R -> Right (Right = L - R)
-
-    // Gain compensation for L-R
-    const boost = audioCtx.createGain();
-    boost.gain.value = 1.5;
-
-    merger.connect(boost);
-    boost.connect(wetGain);
-    wetGain.connect(audioCtx.destination);
+        if (audioCtx.state === 'suspended') await audioCtx.resume();
+        console.log("Audio system initialized successfully");
+    } catch (err) {
+        console.error("Audio init error:", err);
+    }
 }
 
 searchBtn.addEventListener('click', async () => {
     const query = searchInput.value.trim();
     if (!query) return;
 
+    lastSearchQuery = query;
+    searchResultsOffset = 0;
     loader.style.display = 'block';
     searchBtn.disabled = true;
 
@@ -120,6 +438,7 @@ searchBtn.addEventListener('click', async () => {
             if (videoInfo) {
                 addToPlaylist(videoInfo);
                 searchInput.value = '';
+                switchTab('playlist-tab');
             } else {
                 alert('無法獲取影片資訊，請檢查網址是否正確。');
             }
@@ -128,6 +447,7 @@ searchBtn.addEventListener('click', async () => {
             const results = await eel.search_youtube(query)();
             if (results && results.length > 0) {
                 displayResults(results);
+                switchTab('search-tab');
             } else {
                 alert('找不到相關結果，請換個關鍵字搜尋。');
             }
@@ -141,26 +461,66 @@ searchBtn.addEventListener('click', async () => {
     }
 });
 
-function displayResults(results) {
-    resultsGrid.innerHTML = '';
-    resultsSection.style.display = 'block';
+loadMoreBtn.addEventListener('click', async () => {
+    if (!lastSearchQuery) return;
+
+    searchResultsOffset += 20;
+    loader.style.display = 'block';
+    loadMoreBtn.disabled = true;
+
+    try {
+        const results = await eel.search_youtube(lastSearchQuery, searchResultsOffset + 20)();
+        if (results && results.length > 0) {
+            // Only take the new ones (since ytsearch returns all from beginning)
+            const newResults = results.slice(searchResultsOffset);
+            displayResults(results, true); // true means append
+        } else {
+            alert('沒有更多結果了。');
+            loadMoreContainer.style.display = 'none';
+        }
+    } catch (err) {
+        console.error('Load more error:', err);
+    } finally {
+        loader.style.display = 'none';
+        loadMoreBtn.disabled = false;
+    }
+});
+
+function displayResults(results, append = false) {
+    if (!append) resultsGrid.innerHTML = '';
 
     results.forEach(item => {
+        const isFav = favorites.some(f => f.id === item.id);
         const card = document.createElement('div');
         card.className = 'result-card fade-in';
         card.innerHTML = `
-      <img src="${item.thumbnail}" alt="${item.title}">
-      <div class="info">
-        <div class="title">${item.title}</div>
-      </div>
-    `;
-        card.onclick = () => {
+            <img src="${item.thumbnail}" alt="${item.title}">
+            <div class="info">
+                <div class="title">${item.title}</div>
+            </div>
+            <div class="fav-btn ${isFav ? 'active' : ''}" data-id="${item.id}">
+                <i class="${isFav ? 'fas' : 'far'} fa-heart"></i>
+            </div>
+        `;
+
+        card.onclick = (e) => {
+            if (e.target.closest('.fav-btn')) return;
             addToPlaylist(item);
-            resultsSection.style.display = 'none';
-            searchInput.value = '';
         };
+
+        card.querySelector('.fav-btn').onclick = (e) => {
+            toggleFavorite(item, e);
+        };
+
         resultsGrid.appendChild(card);
     });
+
+    // Show load more if needed
+    if (results.length >= 20) {
+        loadMoreContainer.style.display = 'block';
+    } else {
+        loadMoreContainer.style.display = 'none';
+    }
 }
 
 // Volume control
@@ -188,6 +548,7 @@ keyResetBtn.addEventListener('click', () => {
 });
 
 function updatePitchShift(delta) {
+    try { initAudio(); } catch (e) { }
     currentPitchShift = Math.max(-12, Math.min(12, currentPitchShift + delta));
     applyPitchShift();
 }
@@ -267,21 +628,32 @@ document.addEventListener('keydown', (e) => {
 });
 
 function addToPlaylist(item) {
-    playlist.push(item);
+    playlist.push({ ...item });
     renderPlaylist();
+    updateNextSongPrompt();
     if (currentIndex === -1) {
         playSong(0);
+    }
+}
+
+function updateNextSongPrompt() {
+    if (currentIndex + 1 < playlist.length) {
+        nextSongText.innerText = `下一首：${playlist[currentIndex + 1].title}`;
+    } else {
+        nextSongText.innerText = '下一首：尚未預約';
     }
 }
 
 function renderPlaylist() {
     if (playlist.length === 0) {
         playlistItems.innerHTML = '<p style="text-align: center; color: rgba(255,255,255,0.3); padding-top: 20px;">目前沒有待播歌曲</p>';
+        updateNextSongPrompt();
         return;
     }
 
     playlistItems.innerHTML = '';
     playlist.forEach((item, index) => {
+        const isFav = favorites.some(f => f.id === item.id);
         const div = document.createElement('div');
         div.className = `playlist-item ${index === currentIndex ? 'active' : ''}`;
         div.id = `playlist-item-${index}`;
@@ -289,18 +661,21 @@ function renderPlaylist() {
         div.setAttribute('data-index', index);
 
         div.innerHTML = `
-      <img src="${item.thumbnail}" alt="${item.title}" draggable="false">
-      <div class="info">
-        <div class="title">${item.title}</div>
-      </div>
-      <div class="delete-btn" title="從清單移除">
-        <i class="fas fa-times"></i>
-      </div>
-    `;
+            <img src="${item.thumbnail}" alt="${item.title}" draggable="false">
+            <div class="info">
+                <div class="title">${item.title}</div>
+            </div>
+            <div class="delete-btn" title="從清單移除">
+                <i class="fas fa-times"></i>
+            </div>
+            <div class="fav-btn ${isFav ? 'active' : ''}" style="margin-right: 35px;" data-id="${item.id}">
+                <i class="${isFav ? 'fas' : 'far'} fa-heart"></i>
+            </div>
+        `;
 
         // Click to play
         div.addEventListener('click', (e) => {
-            if (e.target.closest('.delete-btn')) return;
+            if (e.target.closest('.delete-btn') || e.target.closest('.fav-btn')) return;
             playSong(index);
         });
 
@@ -309,6 +684,11 @@ function renderPlaylist() {
         deleteBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             removeFromPlaylist(index);
+        });
+
+        const favBtn = div.querySelector('.fav-btn');
+        favBtn.addEventListener('click', (e) => {
+            toggleFavorite(item, e);
         });
 
         // Drag events
@@ -387,6 +767,7 @@ function removeFromPlaylist(index) {
         }
     }
     renderPlaylist();
+    updateNextSongPrompt();
 }
 
 async function playSong(index) {
@@ -397,6 +778,8 @@ async function playSong(index) {
     const item = playlist[index];
     nowPlayingTitle.innerText = `正在播放：${item.title}`;
     renderPlaylist();
+    updateNextSongPrompt();
+    addToHistory(item);
 
     // Reset player state completely
     player.pause();
@@ -476,11 +859,15 @@ player.onerror = () => {
             case 1: msg += ' (使用者中止)'; codeName = 'MEDIA_ERR_ABORTED'; break;
             case 2: msg += ' (網路錯誤)'; codeName = 'MEDIA_ERR_NETWORK'; break;
             case 3: msg += ' (解碼錯誤 - 瀏覽器可能不支援此格式)'; codeName = 'MEDIA_ERR_DECODE'; break;
-            case 4: msg += ' (不支援的來源或格式)'; codeName = 'MEDIA_ERR_SRC_NOT_SUPPORTED'; break;
+            case 4:
+                msg += ' (不支援的來源或格式)';
+                codeName = 'MEDIA_ERR_SRC_NOT_SUPPORTED';
+                msg += '\n這通常是因為影片網址解析失敗或是編碼不正確。';
+                break;
         }
     }
     logDebug(`播放器報錯: [${codeName}] ${msg}`);
-    alert(`播放失敗 (錯誤碼 ${err ? err.code : '?'}): ${msg}\n\n這通常與網路環境或 YouTube 的限制有關。請嘗試搜尋其他影片來源。`);
+    alert(`播放失敗 (錯誤碼 ${err ? err.code : '?'}): ${msg}\n\n請嘗試搜尋其他影片來源，或重新啟動程式。`);
 };
 
 const updateModeUI = (isSinging) => {
@@ -496,6 +883,7 @@ const updateModeUI = (isSinging) => {
 };
 
 karaokeKnob.addEventListener('click', () => {
+    try { initAudio(); } catch (e) { }
     const isSinging = !karaokeKnob.classList.contains('active');
     updateModeUI(isSinging);
 
@@ -511,6 +899,65 @@ karaokeKnob.addEventListener('click', () => {
         wetGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.1);
     }
 });
+
+function renderFavorites() {
+    if (favorites.length === 0) {
+        favoritesItems.innerHTML = '<p style="text-align: center; color: rgba(255,255,255,0.3); padding-top: 20px;">尚無收藏歌曲</p>';
+        return;
+    }
+    favoritesItems.innerHTML = '';
+    favorites.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'playlist-item';
+        div.innerHTML = `
+            <img src="${item.thumbnail}" alt="${item.title}">
+            <div class="info">
+                <div class="title">${item.title}</div>
+            </div>
+            <div class="fav-btn active" data-id="${item.id}">
+                <i class="fas fa-heart"></i>
+            </div>
+        `;
+        div.onclick = (e) => {
+            if (e.target.closest('.fav-btn')) return;
+            addToPlaylist(item);
+        };
+        div.querySelector('.fav-btn').onclick = (e) => {
+            toggleFavorite(item, e);
+        };
+        favoritesItems.appendChild(div);
+    });
+}
+
+function renderHistory() {
+    if (history.length === 0) {
+        historyItems.innerHTML = '<p style="text-align: center; color: rgba(255,255,255,0.3); padding-top: 20px;">尚無播放記錄</p>';
+        return;
+    }
+    historyItems.innerHTML = '';
+    history.forEach(item => {
+        const isFav = favorites.some(f => f.id === item.id);
+        const div = document.createElement('div');
+        div.className = 'playlist-item';
+        div.innerHTML = `
+            <img src="${item.thumbnail}" alt="${item.title}">
+            <div class="info">
+                <div class="title">${item.title}</div>
+            </div>
+            <div class="fav-btn ${isFav ? 'active' : ''}" data-id="${item.id}">
+                <i class="${isFav ? 'fas' : 'far'} fa-heart"></i>
+            </div>
+        `;
+        div.onclick = (e) => {
+            if (e.target.closest('.fav-btn')) return;
+            addToPlaylist(item);
+        };
+        div.querySelector('.fav-btn').onclick = (e) => {
+            toggleFavorite(item, e);
+        };
+        historyItems.appendChild(div);
+    });
+}
 
 // Export/Import Playlist
 const formatDateTime = () => {
@@ -620,110 +1067,3 @@ searchInput.addEventListener('keypress', (e) => {
         searchBtn.click();
     }
 });
-
-/**
- * Jungle pitch shifter implementation
- * Based on Chris Wilson's pitch shifter (which is based on a "jungle" concept)
- */
-class Jungle {
-    constructor(context) {
-        this.context = context;
-        this.input = context.createGain();
-        this.output = context.createGain();
-
-        // Delay values for the pitch shifter
-        this.delayTime = 0.100; // 100ms
-        this.fadeTime = 0.050; // 50ms
-        this.bufferTime = 0.100;
-
-        // Create the necessary nodes
-        this.mod1 = context.createOscillator();
-        this.mod2 = context.createOscillator();
-        this.mod1Gain = context.createGain();
-        this.mod2Gain = context.createGain();
-        this.mod1Inv = context.createGain();
-        this.mod1Inv.gain.value = -1;
-
-        this.mod2Inv = context.createGain();
-        this.mod2Inv.gain.value = -1;
-
-        this.processor1 = context.createDelay(this.delayTime * 2);
-        this.processor2 = context.createDelay(this.delayTime * 2);
-
-        this.fade1 = context.createGain();
-        this.fade2 = context.createGain();
-
-        // Waveform for the crossfade
-        const length = 4096;
-        const curve1 = new Float32Array(length);
-        const curve2 = new Float32Array(length);
-        for (let i = 0; i < length; i++) {
-            const x = i / length;
-            curve1[i] = Math.sqrt(Math.cos(x * Math.PI / 2));
-            curve2[i] = Math.sqrt(Math.sin(x * Math.PI / 2));
-        }
-
-        this.fade1Curve = context.createWaveShaper();
-        this.fade1Curve.curve = curve1;
-        this.fade2Curve = context.createWaveShaper();
-        this.fade2Curve.curve = curve2;
-
-        // Set up the graph
-        this.input.connect(this.processor1);
-        this.input.connect(this.processor2);
-
-        this.processor1.connect(this.fade1);
-        this.processor2.connect(this.fade2);
-
-        this.fade1.connect(this.output);
-        this.fade2.connect(this.output);
-
-        this.mod1.connect(this.mod1Gain);
-        this.mod2.connect(this.mod2Gain);
-
-        this.mod1Gain.connect(this.processor1.delayTime);
-        this.mod2Gain.connect(this.processor2.delayTime);
-
-        this.mod1.connect(this.fade1Curve);
-        this.mod2.connect(this.fade2Curve);
-
-        this.fade1Curve.connect(this.fade1.gain);
-        this.fade2Curve.connect(this.fade2.gain);
-
-        // Configure oscillators
-        this.mod1.type = 'sawtooth';
-        this.mod2.type = 'sawtooth';
-
-        this.mod1.frequency.value = 1 / this.bufferTime;
-        this.mod2.frequency.value = 1 / this.bufferTime;
-
-        // Mod 2 is phased 180 degrees from Mod 1
-        // We can't set phase directly, but we can use an offset or just let them start at different times.
-        // A better way is to use a single oscillator and a delay for the second path?
-        // Actually, we can use a custom periodic wave or just start them with a delay.
-
-        this.setPitchOffset(0);
-
-        this.mod1.start();
-        this.mod2.start();
-        // Shift mod2 by half a period
-        // This is tricky with OscillatorNode. Let's use a workaround with 
-        // a constant source and a delay if needed, but the classic Jungle used two sawtooths.
-    }
-
-    setPitchOffset(offset) {
-        // Logic:
-        // offset of 1.0 means an octave up.
-        // offset of -1.0 means an octave down.
-        // A positive speed increases delay over time, lowering pitch. 
-        // A negative speed decreases delay over time, raising pitch.
-        const speed = offset * this.bufferTime;
-
-        this.mod1Gain.gain.setTargetAtTime(speed, this.context.currentTime, 0.01);
-        this.mod2Gain.gain.setTargetAtTime(speed, this.context.currentTime, 0.01);
-
-        // Ensure delay starts at a safe base value
-        this.processor1.delayTime.value = this.delayTime;
-        this.processor2.delayTime.value = this.delayTime;
-    }
-}

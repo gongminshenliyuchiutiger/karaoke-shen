@@ -17,19 +17,10 @@
       <p>成為卡拉OK神，不再只是夢想！</p>
     </header>
 
-    <div class="search-container">
-      <input type="text" id="search-input" placeholder="輸入搜尋關鍵字或 YouTube 網址...">
-      <div class="loader" id="search-loader"></div>
-      <button class="btn" id="search-btn">
-        <i class="fas fa-search"></i> 搜尋
-      </button>
-    </div>
 
-    <div class="results-section" id="results-section">
-      <h3>搜尋結果</h3>
-      <div class="results-grid" id="results-grid">
-        <!-- Results will be injected here -->
-      </div>
+    <!-- Next Song Marquee/Prompt -->
+    <div id="next-song-prompt" class="next-song-prompt">
+      <i class="fas fa-bullhorn"></i> <span id="next-song-text">下一首：尚未預約</span>
     </div>
 
     <div class="main-content">
@@ -90,24 +81,80 @@
         </div>
       </div>
 
-      <div class="playlist-section">
-        <div class="playlist-header">
-          <span>待播清單</span>
-          <div class="playlist-actions">
-            <button class="btn btn-ghost btn-icon-only" id="export-playlist-btn" title="匯出清單">
-              <i class="fas fa-file-export"></i> 匯出
-            </button>
-            <button class="btn btn-ghost btn-icon-only" id="import-playlist-btn" title="匯入清單">
-              <i class="fas fa-file-import"></i> 匯入
-            </button>
-            <button class="btn btn-ghost" id="clear-playlist-btn" title="清空清單">
-              <i class="fas fa-trash-alt"></i> 清空
-            </button>
-          </div>
+      <div class="sidebar-section">
+        <div class="tabs-nav">
+          <button class="tab-btn active" data-tab="playlist-tab">
+            <i class="fas fa-list"></i> 待播
+          </button>
+          <button class="tab-btn" data-tab="search-tab">
+            <i class="fas fa-search"></i> 搜尋
+          </button>
+          <button class="tab-btn" data-tab="favorites-tab" id="fav-tab-btn">
+            <i class="fas fa-heart"></i> 最愛
+          </button>
+          <button class="tab-btn" data-tab="history-tab">
+            <i class="fas fa-history"></i> 記錄
+          </button>
         </div>
-        <div id="playlist-items">
-          <!-- Playlist items will be injected here -->
-          <p style="text-align: center; color: rgba(255,255,255,0.3); padding-top: 20px;">目前沒有待播歌曲</p>
+
+        <div class="tab-content">
+          <!-- Playlist Tab -->
+          <div id="playlist-tab" class="tab-pane active">
+            <div class="playlist-header">
+              <span>待播清單</span>
+              <div class="playlist-actions">
+                <button class="btn btn-ghost btn-icon-only" id="export-playlist-btn" title="匯出清單">
+                  <i class="fas fa-file-export"></i>
+                </button>
+                <button class="btn btn-ghost btn-icon-only" id="import-playlist-btn" title="匯入清單">
+                  <i class="fas fa-file-import"></i>
+                </button>
+                <button class="btn btn-ghost" id="clear-playlist-btn" title="清空">
+                  <i class="fas fa-trash-alt"></i>
+                </button>
+              </div>
+            </div>
+            <div id="playlist-items" class="scroll-area">
+              <p style="text-align: center; color: rgba(255,255,255,0.3); padding-top: 20px;">目前沒有待播歌曲</p>
+            </div>
+          </div>
+
+          <!-- Search Tab -->
+          <div id="search-tab" class="tab-pane">
+            <div class="search-container-inside">
+              <div class="search-input-wrapper">
+                <input type="text" id="search-input" placeholder="搜尋或貼上網址...">
+                <div class="loader" id="search-loader"></div>
+              </div>
+              <button class="btn btn-small" id="search-btn">
+                <i class="fas fa-search"></i>
+              </button>
+            </div>
+            <div class="section-header">搜尋結果</div>
+            <div id="results-grid" class="results-grid scroll-area">
+              <!-- Search results injected here -->
+              <p style="text-align: center; color: rgba(255,255,255,0.3); padding-top: 20px;">請輸入關鍵字進行搜尋</p>
+            </div>
+            <div id="load-more-container" style="display: none; padding: 10px; text-align: center;">
+              <button class="btn btn-small" id="load-more-btn" style="width: 100%;">載入更多</button>
+            </div>
+          </div>
+
+          <!-- Favorites Tab -->
+          <div id="favorites-tab" class="tab-pane">
+            <div class="section-header">我的最愛</div>
+            <div id="favorites-items" class="scroll-area">
+              <p style="text-align: center; color: rgba(255,255,255,0.3); padding-top: 20px;">尚無收藏歌曲</p>
+            </div>
+          </div>
+
+          <!-- History Tab -->
+          <div id="history-tab" class="tab-pane">
+            <div class="section-header">最近播放</div>
+            <div id="history-items" class="scroll-area">
+              <p style="text-align: center; color: rgba(255,255,255,0.3); padding-top: 20px;">尚無播放記錄</p>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -116,6 +163,28 @@
     <footer>
       <span>Copyright © Liyuchiutiger Gongminshen</span>
     </footer>
+
+    <!-- Floating Mobile Access -->
+    <div id="mobile-remote-widget">
+      <div class="mobile-access-popup" id="mobile-access-popup">
+        <div class="popup-header">
+          <span><i class="fas fa-mobile-alt"></i> 手機點歌</span>
+          <button id="close-mobile-popup"><i class="fas fa-times"></i></button>
+        </div>
+        <div id="qrcode-container">
+          <img id="qrcode-img" src="" alt="QR Code">
+        </div>
+        <div class="mobile-link-container">
+          <a id="mobile-url-link" href="#" target="_blank" title="在新分頁開啟">http://0.0.0.0:8000/mobile</a>
+          <button id="copy-mobile-link" class="btn btn-ghost btn-icon-only" title="複製連結">
+            <i class="fas fa-copy"></i>
+          </button>
+        </div>
+      </div>
+      <div id="mobile-fab" title="手機遠端點歌">
+        <i class="fas fa-mobile-alt"></i>
+      </div>
+    </div>
   </div>
 
   <div id="floating-mascot" title="把我移到任何地方！">
