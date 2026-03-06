@@ -248,6 +248,39 @@ function js_skip_song() {
     playNext();
 }
 
+eel.expose(js_update_pitch);
+function js_update_pitch(delta) {
+    console.log("Remote update pitch:", delta);
+    updatePitchShift(delta);
+}
+
+eel.expose(js_reset_pitch);
+function js_reset_pitch() {
+    console.log("Remote reset pitch");
+    currentPitchShift = 0;
+    applyPitchShift();
+}
+
+eel.expose(js_set_vocal_mode);
+function js_set_vocal_mode(mode) {
+    console.log("Remote set vocal mode:", mode);
+    try { initAudio(); } catch (e) { }
+    const isSinging = (mode === 'singing');
+    updateModeUI(isSinging);
+
+    if (!audioCtx) return;
+
+    if (isSinging) {
+        // Crossfade to wet (Singing Mode - No vocals)
+        dryGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.1);
+        wetGain.gain.setTargetAtTime(1, audioCtx.currentTime, 0.1);
+    } else {
+        // Crossfade back to dry (Guide Mode - With vocals)
+        dryGain.gain.setTargetAtTime(1, audioCtx.currentTime, 0.1);
+        wetGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.1);
+    }
+}
+
 async function initMobileAccess() {
     if (typeof eel === 'undefined') return;
     try {

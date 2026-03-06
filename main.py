@@ -184,6 +184,27 @@ def remote_skip_song():
     eel.js_skip_song()
     return True
 
+@eel.expose
+def remote_update_pitch(delta):
+    """Bridge for mobile to update pitch in main window."""
+    print(f"Remote command: Update Pitch by {delta}")
+    eel.js_update_pitch(delta)
+    return True
+
+@eel.expose
+def remote_reset_pitch():
+    """Bridge for mobile to reset pitch in main window."""
+    print("Remote command: Reset Pitch")
+    eel.js_reset_pitch()
+    return True
+
+@eel.expose
+def remote_set_vocal_mode(mode):
+    """Bridge for mobile to set vocal mode (guide/singing) in main window."""
+    print(f"Remote command: Set Vocal Mode to {mode}")
+    eel.js_set_vocal_mode(mode)
+    return True
+
 @eel.btl.route('/mobile')
 def mobile_page():
     return static_file('mobile.html', root=web_dir)
@@ -250,6 +271,27 @@ def mobile_play_pause():
 @eel.btl.route('/mobile_skip')
 def mobile_skip():
     remote_skip_song()
+    return {"status": "success"}
+
+@eel.btl.route('/mobile_update_pitch')
+def mobile_update_pitch():
+    try:
+        delta = int(request.query.get('delta', 0))
+        remote_update_pitch(delta)
+    except Exception as e:
+        print(f"Update pitch error: {e}")
+    return {"status": "success"}
+
+@eel.btl.route('/mobile_reset_pitch')
+def mobile_reset_pitch():
+    remote_reset_pitch()
+    return {"status": "success"}
+
+@eel.btl.route('/mobile_set_vocal_mode')
+def mobile_set_vocal_mode():
+    mode = ensure_utf8(request.query.get('mode'))
+    if mode in ['guide', 'singing']:
+        remote_set_vocal_mode(mode)
     return {"status": "success"}
 
 @eel.btl.route('/proxy_stream')

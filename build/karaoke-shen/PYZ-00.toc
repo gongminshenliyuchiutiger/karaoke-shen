@@ -1,5 +1,4 @@
-('C:\\GitHub.gongminshenliyuchiutiger\\karaoke-shen - '
- '複製\\build\\karaoke-shen\\PYZ-00.pyz',
+('C:\\GitHub.gongminshenliyuchiutiger\\karaoke-shen\\build\\karaoke-shen\\PYZ-00.pyz',
  [('__future__',
    'C:\\Users\\Liyu\\AppData\\Local\\Programs\\Python\\Python314\\Lib\\__future__.py',
    'PYMODULE'),
