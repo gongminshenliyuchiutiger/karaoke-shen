@@ -122,6 +122,19 @@ def get_local_ip():
         IP = '127.0.0.1'
     finally:
         s.close()
+        
+    if IP == '0.0.0.0' or IP.startswith('169.254.'):
+        # Fallback to checking hostname
+        try:
+            hostname = socket.gethostname()
+            IP = socket.gethostbyname(hostname)
+        except:
+            IP = '127.0.0.1'
+            
+    # Final safety net
+    if IP == '0.0.0.0':
+        IP = '127.0.0.1'
+        
     return IP
 
 @eel.expose
