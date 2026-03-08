@@ -434,13 +434,44 @@
                     <i class="fas fa-user-shield"></i> 管理員模式
                 </h3>
 
-                <div class="admin-playback-controls" style="margin-bottom: 10px;">
+
+                <div class="admin-playback-controls"
+                    style="margin-top: 15px; margin-bottom: 20px; gap: 10px; display: grid; grid-template-columns: 1fr 1fr 1fr;">
+                    <button class="btn-control"
+                        style="background: #ff00ff; color: white; border: none; box-shadow: 0 0 10px rgba(255,0,255,0.4);"
+                        onclick="remoteToggleQR()">
+                        <div style="display: flex; flex-direction: column; align-items: center;">
+                            <i class="fas fa-qrcode" style="font-size: 1.2rem; margin-bottom: 4px;"></i>
+                            <span style="font-size: 0.85rem;">QRcode</span>
+                        </div>
+                    </button>
                     <button class="btn-control btn-play-pause" onclick="remotePlayPause()">
                         <i class="fas fa-play"></i> / <i class="fas fa-pause"></i> 播放
                     </button>
                     <button class="btn-control btn-skip" onclick="remoteSkip()">
                         <i class="fas fa-step-forward"></i> 切歌
                     </button>
+                </div>
+
+                <div class="admin-playback-controls" style="margin-bottom: 10px;">
+                    <button class="btn-control" style="background: #ff9800; color: black;" onclick="remoteSeek(-10)">
+                        <i class="fas fa-undo"></i> -10s
+                    </button>
+                    <button class="btn-control" style="background: #ffc107; color: black;" onclick="remoteSeek(10)">
+                        <i class="fas fa-redo"></i> +10s
+                    </button>
+                    <button class="btn-control" style="background: #444; color: white;"
+                        onclick="remoteToggleFullscreen()">
+                        <i class="fas fa-expand"></i> 全螢幕
+                    </button>
+                </div>
+
+                <div class="admin-playback-controls"
+                    style="margin-bottom: 10px; align-items: center; background: rgba(255,255,255,0.05); padding: 8px 12px; border-radius: 10px;">
+                    <i class="fas fa-volume-down" style="color: #888;"></i>
+                    <input type="range" id="remote-volume" min="0" max="1" step="0.05" value="1"
+                        style="flex: 1; margin: 0 10px;" oninput="remoteSetVolume(this.value)">
+                    <i class="fas fa-volume-up" style="color: #888;"></i>
                 </div>
 
                 <div class="admin-playback-controls" style="margin-bottom: 10px;">
@@ -451,6 +482,11 @@
                     <button class="btn-control" style="background: #9c27b0; color: white;"
                         onclick="remoteVocalMode('singing')">
                         <i class="fas fa-microphone-slash"></i> 歡唱
+                    </button>
+                    <button class="btn-control"
+                        style="background: linear-gradient(45deg, #ff00ff, #00ffff); color: white;"
+                        onclick="remoteToggleFX()">
+                        <i class="fas fa-magic"></i> 霓虹模式
                     </button>
                 </div>
 
@@ -714,6 +750,75 @@
                 alert('重置音調失敗');
             }
         }
+
+        async function remoteSetVolume(level) {
+            try {
+                await fetch(`/mobile_set_volume?level=${level}`);
+            } catch (e) {
+                console.error('Failed to set volume');
+            }
+        }
+
+        async function remoteToggleFullscreen() {
+            try {
+                await fetch('/mobile_toggle_fullscreen');
+            } catch (e) {
+                console.error('Failed to toggle fullscreen');
+            }
+        }
+
+        async function remoteToggleFX() {
+            try {
+                await fetch('/mobile_toggle_fx');
+            } catch (e) {
+                console.error('Failed to toggle FX');
+            }
+        }
+
+        async function remoteToggleQR() {
+            try {
+                await fetch('/mobile_toggle_qr');
+            } catch (e) {
+                console.error('Failed to toggle QR');
+            }
+        }
+
+        async function remoteSeek(delta) {
+            try {
+                await fetch(`/mobile_seek?delta=${delta}`);
+            } catch (e) {
+                console.error('Failed to seek');
+            }
+        }
+
+        // --- Real-time Sync ---
+        let isDraggingProgress = false;
+
+        function formatTime(seconds) {
+            if (isNaN(seconds) || seconds === null) return "0:00";
+            const min = Math.floor(seconds / 60);
+            const sec = Math.floor(seconds % 60);
+            return `${min}:${sec.toString().padStart(2, '0')}`;
+        }
+
+        async function updateStatus() {
+            try {
+                const response = await fetch('/mobile_status');
+                const status = await response.json();
+
+                // Update Volume (only if not currently being dragged by user)
+                const volSlider = document.getElementById('remote-volume');
+                if (volSlider && !volSlider.matches(':active')) {
+                    volSlider.value = status.volume;
+                }
+            } catch (e) {
+                console.error("Sync error:", e);
+            }
+        }
+
+        // Start polling every 1.5 seconds
+        setInterval(updateStatus, 1500);
+        updateStatus();
 
         refreshBtn.onclick = loadPlaylist;
 

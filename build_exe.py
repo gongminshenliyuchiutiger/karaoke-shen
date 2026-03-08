@@ -23,6 +23,7 @@ def build():
         "python", "-m", "PyInstaller",
         "--onefile",
         "--noconsole",
+        "--clean",
         f"--add-data=web{sep}web",
         "--name=karaoke-shen",
         "main.py"

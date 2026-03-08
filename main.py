@@ -205,6 +205,89 @@ def remote_set_vocal_mode(mode):
     eel.js_set_vocal_mode(mode)
     return True
 
+@eel.expose
+def remote_set_volume(level):
+    """Bridge for mobile to set volume in main window."""
+    print(f"Remote command: Set Volume to {level}")
+    eel.js_set_volume(level)
+    return True
+
+@eel.expose
+def remote_toggle_fullscreen():
+    """Bridge for mobile to toggle fullscreen in main window."""
+    print("Remote command: Toggle Fullscreen")
+    eel.js_toggle_fullscreen()
+    return True
+
+@eel.expose
+def remote_seek(delta):
+    """Bridge for mobile to seek in main window."""
+    print(f"Remote command: Seek {delta}s")
+    eel.js_seek(delta)
+    return True
+
+@eel.expose
+def trigger_system_f11():
+    """Simulate F11 keypress on Windows to toggle browser fullscreen."""
+    print("Triggering system-level F11")
+    try:
+        import ctypes
+        # VK_F11 = 0x7A
+        ctypes.windll.user32.keybd_event(0x7A, 0, 0, 0) # Down
+        ctypes.windll.user32.keybd_event(0x7A, 0, 2, 0) # Up
+        return True
+    except Exception as e:
+        print(f"Failed to trigger system F11: {e}")
+        return False
+
+@eel.expose
+def get_player_status():
+    """Request status from the main window."""
+    # We use a synchronous return from Eel
+    return eel.js_get_status()()
+
+@eel.btl.route('/mobile_status')
+def mobile_status():
+    """Endpoint for mobile to poll current status."""
+    status = get_player_status()
+    import json
+    return json.dumps(status)
+
+@eel.expose
+def remote_toggle_fx():
+    """Toggle performance FX in main window."""
+    eel.js_toggle_performance_fx()
+    return True
+
+@eel.expose
+def remote_seek_to(time):
+    """Bridge for mobile to seek to a specific time."""
+    print(f"Remote command: Seek to {time}s")
+    eel.js_seek_to(float(time))
+    return True
+
+@eel.expose
+def remote_toggle_qr():
+    """Toggle PC QR code visibility."""
+    eel.js_toggle_qr()
+    return True
+
+@eel.btl.route('/mobile_toggle_fx')
+def mobile_toggle_fx():
+    remote_toggle_fx()
+    return "OK"
+
+@eel.btl.route('/mobile_toggle_qr')
+def mobile_toggle_qr():
+    remote_toggle_qr()
+    return "OK"
+
+@eel.btl.route('/mobile_seek_to')
+def mobile_seek_to():
+    time = eel.btl.request.query.time
+    remote_seek_to(time)
+    return "OK"
+
 @eel.btl.route('/mobile')
 def mobile_page():
     return static_file('mobile.html', root=web_dir)
@@ -292,6 +375,29 @@ def mobile_set_vocal_mode():
     mode = ensure_utf8(request.query.get('mode'))
     if mode in ['guide', 'singing']:
         remote_set_vocal_mode(mode)
+    return {"status": "success"}
+
+@eel.btl.route('/mobile_set_volume')
+def mobile_set_volume():
+    try:
+        level = float(request.query.get('level', 1.0))
+        remote_set_volume(level)
+    except Exception as e:
+        print(f"Set volume error: {e}")
+    return {"status": "success"}
+
+@eel.btl.route('/mobile_toggle_fullscreen')
+def mobile_toggle_fullscreen():
+    remote_toggle_fullscreen()
+    return {"status": "success"}
+
+@eel.btl.route('/mobile_seek')
+def mobile_seek():
+    try:
+        delta = int(request.query.get('delta', 10))
+        remote_seek(delta)
+    except Exception as e:
+        print(f"Seek error: {e}")
     return {"status": "success"}
 
 @eel.btl.route('/proxy_stream')

@@ -281,6 +281,99 @@ function js_set_vocal_mode(mode) {
     }
 }
 
+eel.expose(js_set_volume);
+function js_set_volume(level) {
+    console.log("Remote set volume:", level);
+    player.volume = level;
+    if (volumeSlider) volumeSlider.value = level;
+}
+
+eel.expose(js_toggle_fullscreen);
+function js_toggle_fullscreen() {
+    console.log("Remote toggle fullscreen triggered");
+    const wrapper = document.getElementById('video-wrapper');
+    if (!wrapper) return;
+
+    // 1. Toggle CSS-based pseudo-fullscreen (covers entire browser window)
+    const isPseudoNow = wrapper.classList.toggle('pseudo-fullscreen');
+
+    // Hide other floating widgets if in fullscreen
+    const widget = document.getElementById('mobile-remote-widget');
+    const mascot = document.getElementById('floating-mascot');
+    if (isPseudoNow) {
+        if (widget) widget.style.display = 'none';
+        if (mascot) mascot.style.display = 'none';
+    } else {
+        if (widget) widget.style.display = 'block';
+        if (mascot) mascot.style.display = 'block';
+    }
+
+    // 2. Try native fullscreen (covers whole screen)
+    // Browsers often block this remotely, so we try and then use Python backup
+    try {
+        if (isPseudoNow && !document.fullscreenElement) {
+            wrapper.requestFullscreen().catch(() => {
+                // FALLBACK: If native fails (blocked by browser), trigger system-level F11
+                console.log("Native fullscreen blocked, triggering system F11 backup");
+                eel.trigger_system_f11();
+            });
+        } else if (!isPseudoNow && document.fullscreenElement) {
+            document.exitFullscreen().catch(() => {
+                // FALLBACK: Exit via system F11 if needed
+                eel.trigger_system_f11();
+            });
+        } else if (!isPseudoNow && !document.fullscreenElement) {
+            // Case where browser is in F11 mode but wrapper is not in native fullscreen
+            // We just trigger F11 again to exit browser fullscreen
+            eel.trigger_system_f11();
+        }
+    } catch (e) {
+        console.warn("Fullscreen API interaction failed:", e);
+        eel.trigger_system_f11();
+    }
+}
+
+eel.expose(js_toggle_performance_fx);
+function js_toggle_performance_fx() {
+    console.log("Remote toggle performance FX");
+    const wrapper = document.getElementById('video-wrapper');
+    if (wrapper) {
+        wrapper.classList.toggle('performance-fx');
+    }
+}
+
+eel.expose(js_get_status);
+function js_get_status() {
+    return {
+        currentTime: player.currentTime,
+        duration: player.duration || 0,
+        volume: player.volume,
+        isPlaying: !player.paused,
+        title: document.querySelector('.song-info .title')?.innerText || "Unknown"
+    };
+}
+
+eel.expose(js_seek);
+function js_seek(delta) {
+    console.log("Remote seek:", delta);
+    player.currentTime += delta;
+}
+
+eel.expose(js_seek_to);
+function js_seek_to(time) {
+    console.log("Remote seek to:", time);
+    player.currentTime = time;
+}
+
+eel.expose(js_toggle_qr);
+function js_toggle_qr() {
+    console.log("Remote toggle QR");
+    if (mobilePopup) {
+        mobilePopup.classList.toggle('active');
+        mobilePopup.classList.remove('minimized');
+    }
+}
+
 async function initMobileAccess() {
     if (typeof eel === 'undefined') return;
     try {
@@ -298,27 +391,38 @@ async function initMobileAccess() {
 
 initMobileAccess();
 
-// Mobile Widget Toggles
+// Mobile Widget Logic
 if (mobileFab) {
     mobileFab.addEventListener('click', () => {
-        mobilePopup.classList.toggle('active');
+        // If already active and NOT minimized, we can either minimize or close.
+        // The user specifically asked to "收" (close/collapse) by clicking the ball.
+        if (mobilePopup.classList.contains('active')) {
+            mobilePopup.classList.remove('active');
+        } else {
+            mobilePopup.classList.add('active');
+            mobilePopup.classList.remove('minimized');
+        }
     });
 }
+
 if (closeMobilePopup) {
-    closeMobilePopup.addEventListener('click', () => {
+    closeMobilePopup.addEventListener('click', (e) => {
+        e.stopPropagation();
         mobilePopup.classList.remove('active');
-    }); if (copyMobileBtn) {
-        copyMobileBtn.addEventListener('click', () => {
-            const url = mobileUrlLink.innerText;
-            navigator.clipboard.writeText(url).then(() => {
-                const originalIcon = copyMobileBtn.innerHTML;
-                copyMobileBtn.innerHTML = '<i class="fas fa-check" style="color: var(--secondary-color)"></i>';
-                setTimeout(() => {
-                    copyMobileBtn.innerHTML = originalIcon;
-                }, 2000);
-            });
+    });
+}
+
+if (copyMobileBtn) {
+    copyMobileBtn.addEventListener('click', () => {
+        const url = mobileUrlLink.innerText;
+        navigator.clipboard.writeText(url).then(() => {
+            const originalIcon = copyMobileBtn.innerHTML;
+            copyMobileBtn.innerHTML = '<i class="fas fa-check" style="color: var(--secondary-color)"></i>';
+            setTimeout(() => {
+                copyMobileBtn.innerHTML = originalIcon;
+            }, 2000);
         });
-    }
+    });
 }
 
 function switchTab(tabId) {
