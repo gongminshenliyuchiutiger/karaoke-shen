@@ -12,9 +12,12 @@
 
 <body>
   <div id="app" class="fade-in">
-    <header>
-      <h1>卡拉OK神歡唱系統</h1>
-      <p>成為卡拉OK神，不再只是夢想！</p>
+    <header style="position: relative;">
+      <h1 style="display:inline-block; margin:0;">卡拉OK神歡唱系統</h1>
+      <button id="settings-btn" class="btn btn-ghost btn-icon-only" style="position: absolute; right: 20px; top: 20px; font-size: 1.2rem; cursor: pointer; color: #888; background: transparent; border: none; transition: color 0.3s;" title="系統設定" onmouseover="this.style.color='#bb86fc'" onmouseout="this.style.color='#888'">
+        <i class="fas fa-key"></i>
+      </button>
+      <p style="margin-top: 5px;">成為卡拉OK神，不再只是夢想！</p>
     </header>
 
 
@@ -163,6 +166,23 @@
     <footer>
       <span>Copyright © Liyuchiutiger Gongminshen</span>
     </footer>
+
+    <!-- Settings Modal (PC) -->
+    <div id="settings-modal" style="display: none; position: fixed; z-index: 9999; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8);">
+      <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #1e1e1e; padding: 25px; border-radius: 12px; width: 90%; max-width: 400px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); border: 1px solid rgba(187,134,252,0.2);">
+        <h2 style="color: #bb86fc; margin-top: 0; margin-bottom: 20px; font-size: 1.5rem;"><i class="fas fa-key"></i> 系統設定</h2>
+        <label for="pc-admin-pass" style="color: #e0e0e0; font-size: 0.95rem;">手機端管理員密碼：</label>
+        <div style="display: flex; gap: 10px; margin-top: 10px;">
+          <input type="password" id="pc-admin-pass" placeholder="(預設為空：允許所有人進入)" style="flex: 1; padding: 10px; border-radius: 8px; border: 1px solid #444; background: #121212; color: white; font-size: 1rem;">
+          <button id="save-settings-btn" style="background: #bb86fc; color: #000; border: none; padding: 10px 20px; border-radius: 8px; font-weight: bold; cursor: pointer; transition: background 0.3s;" onmouseover="this.style.background='#d0a6ff'" onmouseout="this.style.background='#bb86fc'">儲存</button>
+        </div>
+        <p style="font-size: 0.85rem; color: #888; margin-top: 15px; line-height: 1.4;">
+          如果不填寫密碼（空白），任何開啟手機端網頁的人都能解鎖管理員面板（控制切歌、升降KEY等）。<br><br>
+          <span style="color: #cf6679;">【提示】公開場合建議設定密碼。</span>
+        </p>
+        <button id="close-settings" style="position: absolute; top: 15px; right: 15px; background: transparent; border: none; color: #888; font-size: 1.5rem; cursor: pointer; transition: color 0.3s;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#888'">&times;</button>
+      </div>
+    </div>
 
     <!-- Floating Mobile Access -->
     <div id="mobile-remote-widget">

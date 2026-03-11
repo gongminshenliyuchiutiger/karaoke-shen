@@ -10,6 +10,8 @@ from bottle import response, request, static_file
 base_dir = os.path.dirname(os.path.abspath(__file__))
 web_dir = os.path.join(base_dir, 'web')
 
+ADMIN_PASSWORD = ""
+
 def ensure_utf8(text):
     """Deep check/fix for mojibake. Bottle on Windows sometimes interprets UTF8 as Latin1."""
     if not text: return ""
@@ -399,6 +401,24 @@ def mobile_seek():
     except Exception as e:
         print(f"Seek error: {e}")
     return {"status": "success"}
+
+@eel.expose
+def set_admin_password(pwd):
+    global ADMIN_PASSWORD
+    ADMIN_PASSWORD = pwd
+    return True
+
+@eel.expose
+def get_admin_password():
+    return ADMIN_PASSWORD
+
+@eel.btl.route('/mobile_verify_admin')
+def mobile_verify_admin():
+    pwd = ensure_utf8(request.query.get('pwd', ''))
+    if ADMIN_PASSWORD == "" or pwd == ADMIN_PASSWORD:
+        return {"status": "success"}
+    else:
+        return {"status": "fail"}
 
 @eel.btl.route('/proxy_stream')
 def proxy_stream():

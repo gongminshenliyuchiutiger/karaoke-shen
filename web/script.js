@@ -1204,3 +1204,42 @@ searchInput.addEventListener('keypress', (e) => {
         searchBtn.click();
     }
 });
+
+// --- Settings UI ---
+const settingsBtn = document.getElementById('settings-btn');
+const settingsModal = document.getElementById('settings-modal');
+const closeSettings = document.getElementById('close-settings');
+const saveSettingsBtn = document.getElementById('save-settings-btn');
+const pcAdminPass = document.getElementById('pc-admin-pass');
+
+if (settingsBtn) {
+    settingsBtn.addEventListener('click', async () => {
+        if (typeof eel !== 'undefined') {
+            try {
+                const currentPass = await eel.get_admin_password()();
+                if (pcAdminPass) pcAdminPass.value = currentPass;
+            } catch(e) {}
+        }
+        if (settingsModal) settingsModal.style.display = 'block';
+    });
+}
+
+if (closeSettings) {
+    closeSettings.addEventListener('click', () => {
+        if (settingsModal) settingsModal.style.display = 'none';
+    });
+}
+
+if (saveSettingsBtn) {
+    saveSettingsBtn.addEventListener('click', async () => {
+        if (typeof eel !== 'undefined' && pcAdminPass) {
+            try {
+                await eel.set_admin_password(pcAdminPass.value)();
+                alert('系統設定已儲存！');
+                if (settingsModal) settingsModal.style.display = 'none';
+            } catch(e) {
+                alert('設定失敗');
+            }
+        }
+    });
+}

@@ -559,16 +559,31 @@
         };
 
         // Admin Unlock
-        lockBtn.onclick = () => {
-            if (adminPass.value === 'admin') {
-                isAdmin = true;
-                document.getElementById('admin-controls-container').style.display = 'block';
-                adminLoginSection.style.display = 'none';
-                toggleAdminBtn.style.display = 'none'; // Hide settings entirely after unlock
-                alert('管理員模式已解鎖！此裝置現在可以控制播放與插播。');
-                loadPlaylist();
-            } else {
-                alert('密碼錯誤');
+        lockBtn.onclick = async () => {
+            const pwd = adminPass.value;
+            const originalText = lockBtn.innerText;
+            lockBtn.innerText = '處理中...';
+            lockBtn.disabled = true;
+
+            try {
+                const response = await fetch(`/mobile_verify_admin?pwd=${encodeURIComponent(pwd)}`);
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    isAdmin = true;
+                    document.getElementById('admin-controls-container').style.display = 'block';
+                    adminLoginSection.style.display = 'none';
+                    toggleAdminBtn.style.display = 'none'; // Hide settings entirely after unlock
+                    alert('管理員模式已解鎖！此裝置現在可以控制播放與插播。');
+                    loadPlaylist();
+                } else {
+                    alert('密碼錯誤');
+                }
+            } catch(e) {
+                alert('驗證失敗，請檢查連線');
+            } finally {
+                lockBtn.innerText = originalText;
+                lockBtn.disabled = false;
             }
         };
 
