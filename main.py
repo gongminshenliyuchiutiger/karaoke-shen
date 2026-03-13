@@ -274,6 +274,13 @@ def remote_toggle_qr():
     eel.js_toggle_qr()
     return True
 
+@eel.expose
+def remote_set_playback_mode(mode):
+    """Bridge for mobile to set playback mode."""
+    print(f"Remote command: Set Playback Mode to {mode}")
+    eel.js_set_playback_mode(mode)
+    return True
+
 @eel.btl.route('/mobile_toggle_fx')
 def mobile_toggle_fx():
     remote_toggle_fx()
@@ -400,6 +407,12 @@ def mobile_seek():
         remote_seek(delta)
     except Exception as e:
         print(f"Seek error: {e}")
+    return {"status": "success"}
+
+@eel.btl.route('/mobile_set_playback_mode')
+def mobile_set_playback_mode():
+    mode = ensure_utf8(request.query.get('mode'))
+    remote_set_playback_mode(mode)
     return {"status": "success"}
 
 @eel.expose

@@ -143,16 +143,19 @@
 
         .toast {
             position: fixed;
-            bottom: 20px;
+            bottom: 30px;
             left: 50%;
             transform: translateX(-50%);
-            background: rgba(255, 255, 255, 0.9);
+            background: var(--primary);
             color: black;
-            padding: 10px 20px;
-            border-radius: 20px;
-            font-size: 0.9rem;
+            padding: 12px 24px;
+            border-radius: 50px;
+            font-size: 1rem;
+            font-weight: bold;
             display: none;
-            z-index: 1000;
+            z-index: 10000;
+            box-shadow: 0 5px 20px rgba(187, 134, 252, 0.5);
+            animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
 
         .admin-login-container {
@@ -501,6 +504,12 @@
                         <i class="fas fa-arrow-up"></i> 升KEY
                     </button>
                 </div>
+                
+                <div class="admin-playback-controls" style="margin-bottom: 20px;">
+                    <button class="btn-control" id="mobile-mode-btn" style="background: #3f51b5; color: white;" onclick="remoteToggleMode()">
+                        <i class="fas fa-repeat"></i> <span id="mobile-mode-text">全曲循環</span>
+                    </button>
+                </div>
             </div> <!-- End of admin-controls-container -->
 
             <div id="admin-playlist">
@@ -798,6 +807,38 @@
             }
         }
 
+        let currentMode = 'loop';
+        async function remoteToggleMode() {
+            if (currentMode === 'loop') currentMode = 'repeat';
+            else if (currentMode === 'repeat') currentMode = 'shuffle';
+            else currentMode = 'loop';
+            
+            try {
+                await fetch(`/mobile_set_playback_mode?mode=${currentMode}`);
+                updateModeButtonUI(currentMode);
+            } catch (e) {
+                console.error('Failed to set mode');
+            }
+        }
+
+        function updateModeButtonUI(mode) {
+            currentMode = mode;
+            const btn = document.getElementById('mobile-mode-btn');
+            const icon = btn.querySelector('i');
+            const text = document.getElementById('mobile-mode-text');
+            
+            if (mode === 'loop') {
+                icon.className = 'fas fa-repeat';
+                text.innerText = '全曲循環';
+            } else if (mode === 'repeat') {
+                icon.className = 'fas fa-redo-alt';
+                text.innerText = '單曲重播';
+            } else if (mode === 'shuffle') {
+                icon.className = 'fas fa-random';
+                text.innerText = '隨機播放';
+            }
+        }
+
         async function remoteSeek(delta) {
             try {
                 await fetch(`/mobile_seek?delta=${delta}`);
@@ -825,6 +866,10 @@
                 const volSlider = document.getElementById('remote-volume');
                 if (volSlider && !volSlider.matches(':active')) {
                     volSlider.value = status.volume;
+                }
+                
+                if (status.playbackMode) {
+                    updateModeButtonUI(status.playbackMode);
                 }
             } catch (e) {
                 console.error("Sync error:", e);

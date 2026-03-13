@@ -120,6 +120,7 @@ let currentIndex = -1;
 let playRequestId = 0;
 let lastSearchQuery = '';
 let searchResultsOffset = 0;
+let playbackMode = 'loop'; // 'loop', 'repeat', 'shuffle'
 
 // Dragging state for FAB and Mascot
 function makeDraggable(el) {
@@ -349,7 +350,8 @@ function js_get_status() {
         duration: player.duration || 0,
         volume: player.volume,
         isPlaying: !player.paused,
-        title: document.querySelector('.song-info .title')?.innerText || "Unknown"
+        title: document.querySelector('.song-info .title')?.innerText || "Unknown",
+        playbackMode: playbackMode
     };
 }
 
@@ -768,9 +770,36 @@ function addToPlaylist(item) {
     playlist.push({ ...item });
     renderPlaylist();
     updateNextSongPrompt();
+    showToast(item);
     if (currentIndex === -1) {
         playSong(0);
     }
+}
+
+function showToast(item) {
+    const container = document.getElementById('toast-container');
+    if (!container) return;
+
+    const toast = document.createElement('div');
+    toast.className = 'toast-notification';
+    toast.innerHTML = `
+        <img src="${item.thumbnail}" class="thumb">
+        <div class="content">
+            <div class="status">已加入待播清單</div>
+            <div class="song-title">${item.title}</div>
+        </div>
+        <div class="icon">
+            <i class="fas fa-check-circle"></i>
+        </div>
+    `;
+
+    container.appendChild(toast);
+
+    // Auto remove after 4 seconds
+    setTimeout(() => {
+        toast.classList.add('hide');
+        setTimeout(() => toast.remove(), 500);
+    }, 4000);
 }
 
 function updateNextSongPrompt() {
@@ -962,11 +991,66 @@ async function playSong(index) {
 }
 
 function playNext() {
-    if (currentIndex + 1 < playlist.length) {
-        playSong(currentIndex + 1);
+    if (playbackMode === 'repeat') {
+        playSong(currentIndex);
+    } else if (playbackMode === 'shuffle') {
+        const nextIdx = Math.floor(Math.random() * playlist.length);
+        playSong(nextIdx);
     } else {
-        // If we've reached the end, stay at the current index but stop
-        currentIndex = playlist.length - 1;
+        // Default loop behavior
+        if (currentIndex + 1 < playlist.length) {
+            playSong(currentIndex + 1);
+        } else {
+            // Loop back to start
+            playSong(0);
+        }
+    }
+}
+
+function togglePlaybackMode() {
+    const btn = document.getElementById('mode-toggle-btn');
+    const icon = btn.querySelector('i');
+    const text = document.getElementById('mode-text');
+
+    if (playbackMode === 'loop') {
+        playbackMode = 'repeat';
+        icon.className = 'fas fa-redo-alt';
+        text.innerText = '單曲重播';
+    } else if (playbackMode === 'repeat') {
+        playbackMode = 'shuffle';
+        icon.className = 'fas fa-random';
+        text.innerText = '隨機播放';
+    } else {
+        playbackMode = 'loop';
+        icon.className = 'fas fa-repeat';
+        text.innerText = '全曲循環';
+    }
+}
+
+const modeBtn = document.getElementById('mode-toggle-btn');
+if (modeBtn) {
+    modeBtn.addEventListener('click', togglePlaybackMode);
+}
+
+eel.expose(js_set_playback_mode);
+function js_set_playback_mode(mode) {
+    if (['loop', 'repeat', 'shuffle'].includes(mode)) {
+        playbackMode = mode;
+        const btn = document.getElementById('mode-toggle-btn');
+        if (!btn) return;
+        const icon = btn.querySelector('i');
+        const text = document.getElementById('mode-text');
+        
+        if (mode === 'loop') {
+            icon.className = 'fas fa-repeat';
+            text.innerText = '全曲循環';
+        } else if (mode === 'repeat') {
+            icon.className = 'fas fa-redo-alt';
+            text.innerText = '單曲重播';
+        } else if (mode === 'shuffle') {
+            icon.className = 'fas fa-random';
+            text.innerText = '隨機播放';
+        }
     }
 }
 
